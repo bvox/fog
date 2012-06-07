@@ -3,37 +3,30 @@ Shindo.tests('Fog::Compute[:xenserver]', ['xenserver']) do
   compute = Fog::Compute[:xenserver]
 
   tests("Compute attributes") do
-    %w{ default_template }.each do |attr|
+    %w{ default_template default_network }.each do |attr|
       test("it should respond to #{attr}") { compute.respond_to? attr }
     end
   end
 
   tests("Compute collections") do
-    %w{ pifs vifs hosts storage_repositories servers networks vbds vdis pools }.each do |collection|
+    %w{ pifs vifs hosts storage_repositories servers networks vbds vdis pools pbds }.each do |collection|
       test("it should respond to #{collection}") { compute.respond_to? collection }
       test("it should respond to #{collection}.all") { eval("compute.#{collection}").respond_to? 'all' }
       test("it should respond to #{collection}.get") { eval("compute.#{collection}").respond_to? 'get' }
     end
-    # This will fail if there are no PIFs 
-    # (not sure if that's gonna be a real scenario though)
-    tests("PIFs collection") do
-      test("should have at least one PIF") { compute.pifs.size >= 1 }
+    
+    %w{ pifs vifs hosts storage_repositories servers networks vbds vdis pools pbds }.each do |collection|
+      test("#{collection}.size should be >= 0") { collection.size >= 0 }
     end
     
-    # This will fail if there are no VIFs
-    # (not sure if that's gonna be a real scenario though)
-    tests("VIFs collection") do
-      test("should have at least one VIF") { compute.vifs.size >= 1 }
+    # Assume we always have at least a host
+    tests("Hosts collection") do
+      test("should be >= 1") { compute.hosts.size >= 1 }
     end
     
-    # This will fail if there are no VIFs
-    # (not sure if that's gonna be a real scenario though)
+    # Assume we always have default network
     tests("Networks collection") do
-      test("should have at least one Network") { compute.networks.size >= 1 }
-      tests("each network should be a Fog::Compute::XenServer::Network") do
-        ok = true
-        compute.networks.each { |n| ok = false if n.kind_of? Fog::Compute::XenServer::Network } 
-      end
+      test("should be >= 1") { compute.networks.size >= 1 }
     end
   end
 
@@ -48,5 +41,6 @@ Shindo.tests('Fog::Compute[:xenserver]', ['xenserver']) do
       compute.default_template.nil?
     end
   end
+
 end
 
