@@ -20,13 +20,13 @@ def create_ephemeral_server
   create_ephemeral_vm
 end
 
-def destroy_ephemeral_servers
+def destroy_ephemeral_servers(name = test_ephemeral_vm_name)
   servers = Fog::Compute[:xenserver].servers
   # Teardown cleanup
-  (servers.all :name_matches => test_ephemeral_vm_name).each do |s|
+  (servers.all :name_matches => name).each do |s|
     s.destroy
   end
-  (servers.templates.find_all { |t| t.name == test_ephemeral_vm_name}).each do |s|
+  (servers.templates.find_all { |t| t.name == name}).each do |s|
     s.destroy
   end
 end
