@@ -4,13 +4,18 @@ require 'fog/compute'
 module Fog
   module Compute
     class AWS < Fog::Service
+      extend Fog::AWS::CredentialFetcher::ServiceMethods
 
       requires :aws_access_key_id, :aws_secret_access_key
-      recognizes :endpoint, :region, :host, :path, :port, :scheme, :persistent, :aws_session_token
+      recognizes :endpoint, :region, :host, :path, :port, :scheme, :persistent, :aws_session_token, :use_iam_profile, :aws_credentials_expire_at
+
+      secrets    :aws_secret_access_key, :hmac, :aws_session_token
 
       model_path 'fog/aws/models/compute'
       model       :address
       collection  :addresses
+      model       :dhcp_options
+      collection  :dhcp_options
       model       :flavor
       collection  :flavors
       model       :image
@@ -41,11 +46,13 @@ module Fog
       request_path 'fog/aws/requests/compute'
       request :allocate_address
       request :associate_address
+      request :associate_dhcp_options
       request :attach_network_interface
       request :attach_internet_gateway
       request :attach_volume
       request :authorize_security_group_ingress
       request :cancel_spot_instance_requests
+      request :create_dhcp_options
       request :create_internet_gateway
       request :create_image
       request :create_key_pair
@@ -58,6 +65,7 @@ module Fog
       request :create_tags
       request :create_volume
       request :create_vpc
+      request :delete_dhcp_options
       request :delete_internet_gateway
       request :delete_key_pair
       request :delete_network_interface
@@ -72,6 +80,7 @@ module Fog
       request :deregister_image
       request :describe_addresses
       request :describe_availability_zones
+      request :describe_dhcp_options
       request :describe_images
       request :describe_instances
       request :describe_internet_gateways
@@ -199,8 +208,8 @@ module Fog
         end
 
         def initialize(options={})
-          @aws_access_key_id = options[:aws_access_key_id]
-
+          @use_iam_profile = options[:use_iam_profile]
+          setup_credentials(options)
           @region = options[:region] || 'us-east-1'
 
           unless ['ap-northeast-1', 'ap-southeast-1', 'eu-west-1', 'us-east-1', 'us-west-1', 'us-west-2', 'sa-east-1'].include?(@region)
@@ -262,10 +271,14 @@ module Fog
 
           resources
         end
+
+        def setup_credentials(options)
+          @aws_access_key_id = options[:aws_access_key_id]
+        end
       end
 
       class Real
-
+        include Fog::AWS::CredentialFetcher::ConnectionMethods
         # Initialize connection to EC2
         #
         # ==== Notes
@@ -292,11 +305,9 @@ module Fog
         def initialize(options={})
           require 'fog/core/parser'
 
-          @aws_access_key_id      = options[:aws_access_key_id]
-          @aws_secret_access_key  = options[:aws_secret_access_key]
-          @aws_session_token      = options[:aws_session_token]
+          @use_iam_profile = options[:use_iam_profile]
+          setup_credentials(options)
           @connection_options     = options[:connection_options] || {}
-          @hmac                   = Fog::HMAC.new('sha256', @aws_secret_access_key)
           @region                 = options[:region] ||= 'us-east-1'
 
           if @endpoint = options[:endpoint]
@@ -320,8 +331,17 @@ module Fog
         end
 
         private
+        def setup_credentials(options)
+          @aws_access_key_id      = options[:aws_access_key_id]
+          @aws_secret_access_key  = options[:aws_secret_access_key]
+          @aws_session_token      = options[:aws_session_token]
+          @aws_credentials_expire_at = options[:aws_credentials_expire_at]
+
+          @hmac                   = Fog::HMAC.new('sha256', @aws_secret_access_key)
+        end
 
         def request(params)
+          refresh_credentials_if_expired
           idempotent  = params.delete(:idempotent)
           parser      = params.delete(:parser)
 
@@ -334,7 +354,7 @@ module Fog
               :host               => @host,
               :path               => @path,
               :port               => @port,
-              :version            => '2012-03-01'
+              :version            => '2012-06-01'
             }
           )
 

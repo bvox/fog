@@ -17,7 +17,10 @@ class AWS
         "ListenerDescriptions" => Array,
         "LoadBalancerName" => String,
         "Policies" => {"LBCookieStickinessPolicies" => Array, "AppCookieStickinessPolicies" => Array},
+        "Scheme" => String,
+        "SecurityGroups" => Fog::Nullable::String, 
         "SourceSecurityGroup" => {"GroupName" => String, "OwnerAlias" => String},
+        "Subnets" => Fog::Nullable::String
       }
 
       CREATE_LOAD_BALANCER = BASIC.merge({
