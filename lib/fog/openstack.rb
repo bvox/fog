@@ -78,6 +78,7 @@ module Fog
       @service_name         = options[:openstack_service_name]
       @identity_service_name = options[:openstack_identity_service_name]
       @endpoint_type         = options[:openstack_endpoint_type] || 'publicURL'
+      @openstack_region      = options[:openstack_region]
 
       if @openstack_auth_token
         req_body = {
@@ -129,6 +130,12 @@ module Fog
         end
         svc = body['access']['serviceCatalog'].
           detect{|x| @service_name.include?(x['type']) }
+      end
+
+      svc['endpoints'] = svc['endpoints'].select{ |x| x['region'] == @openstack_region } if @openstack_region
+      if svc['endpoints'].count > 1
+         regions = svc["endpoints"].map { |x| x['region'] }.uniq.join(',')
+         raise Errors::NotFound.new("Multiple regions available choose one of these '#{regions}'")
       end
 
       identity_svc = body['access']['serviceCatalog'].
