@@ -10,7 +10,7 @@ module Fog
             }
           }
 
-          vanilla_options = [:admin_state_up, :tenant_id ]
+          vanilla_options = [:admin_state_up, :tenant_id, :external_gateway_info]
           vanilla_options.reject{ |o| options[o].nil? }.each do |key|
             data['router'][key] = options[key]
           end
